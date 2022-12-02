@@ -1,0 +1,262 @@
+{extends file='checkout/_partials/steps/checkout-step.tpl'}
+
+{block name='step_content'}
+
+  {hook h='displayPaymentTop'}
+
+  {if $is_free}
+    <p>{l s='No payment needed for this order' d='Shop.Theme.Checkout'}</p>
+  {/if}
+
+  {if (strpos($urls.base_url,'.eu')!==false) || (strpos($urls.base_url,'eu.')!==false)}
+    {$can_buy=($customer.is_logged and $customer.id_default_group>=4)}
+  {else}
+    {$can_buy=($customer.is_logged and $customer.id_default_group>=4)}
+  {/if}
+
+
+    <!-- customer info
+    {if $customer.is_logged}
+        customer.id: {$customer.id}
+        customer.id_default_group: {$customer.id_default_group}
+    {/if}
+
+    Cookie:
+    {$smarty.cookies.customer_cert_uploaded} : {$customer.email}
+    -->
+  <!-- can_buy: {$can_buy}  
+  
+  products: {$products}
+  
+  -->
+
+
+  
+  <div id="payment-options-conditions" style="display:none">
+  <div class="payment-options {if $is_free}hidden-xs-up{/if}">
+    {foreach from=$payment_options item="module_options"}
+      {foreach from=$module_options item="option"}
+        <div>
+          <div id="{$option.id}-container" class="payment-option clearfix">
+            {* This is the way an option should be selected when Javascript is enabled *}
+            <span class="custom-radio float-xs-left">
+              <input
+                class="ps-shown-by-js {if $option.binary} binary {/if}"
+                id="{$option.id}"
+                data-module-name="{$option.module_name}"
+                name="payment-option"
+                type="radio"
+                required
+                {if $selected_payment_option == $option.id || $is_free} checked {/if}
+              >
+              <span></span>
+            </span>
+            {* This is the way an option should be selected when Javascript is disabled *}
+            <form method="GET" class="ps-hidden-by-js">
+              {if $option.id === $selected_payment_option}
+                {l s='Selected' d='Shop.Theme.Checkout'}
+              {else}
+                <button class="ps-hidden-by-js" type="submit" name="select_payment_option" value="{$option.id}">
+                  {l s='Choose' d='Shop.Theme.Actions'}
+                </button>
+              {/if}
+            </form>
+
+            <label for="{$option.id}">
+              <span>{$option.call_to_action_text}</span>
+              {if $option.logo}
+                <img src="{$option.logo}">
+              {/if}
+            </label>
+
+          </div>
+        </div>
+
+        {if $option.additionalInformation}
+          <div
+            id="{$option.id}-additional-information"
+            class="js-additional-information definition-list additional-information{if $option.id != $selected_payment_option} ps-hidden {/if}"
+          >
+            {$option.additionalInformation nofilter}
+          </div>
+        {/if}
+
+        <div
+          id="pay-with-{$option.id}-form"
+          class="js-payment-option-form {if $option.id != $selected_payment_option} ps-hidden {/if}"
+        >
+          {if $option.form}
+            {$option.form nofilter}
+          {else}
+            <form id="payment-form" method="POST" action="{$option.action nofilter}">
+              {foreach from=$option.inputs item=input}
+                <input type="{$input.type}" name="{$input.name}" value="{$input.value}">
+              {/foreach}
+              <button style="display:none" id="pay-with-{$option.id}" type="submit"></button>
+            </form>
+          {/if}
+        </div>
+      {/foreach}
+    {foreachelse}
+      <p class="alert alert-danger">{l s='Unfortunately, there are no payment method available.' d='Shop.Theme.Checkout'}</p>
+    {/foreach}
+  </div>
+
+  {if $show_final_summary}
+    {include file='checkout/_partials/order-final-summary.tpl'}
+  {/if}
+
+  {if $conditions_to_approve|count}
+    <p class="ps-hidden-by-js">
+      {* At the moment, we're not showing the checkboxes when JS is disabled
+         because it makes ensuring they were checked very tricky and overcomplicates
+         the template. Might change later.
+      *}
+      {l s='By confirming the order, you certify that you have read and agree with all of the conditions below:' d='Shop.Theme.Checkout'}
+    </p>
+
+
+    <form id="conditions-to-approve" method="GET">
+      <ul>
+        {foreach from=$conditions_to_approve item="condition" key="condition_name"}
+          <li>
+            <div class="float-xs-left">
+              <span class="custom-checkbox">
+                <input  id    = "conditions_to_approve[{$condition_name}]"
+                        name  = "conditions_to_approve[{$condition_name}]"
+                        required
+                        type  = "checkbox"
+                        value = "1"
+                        class = "ps-shown-by-js"
+                >
+                <span><i class="material-icons checkbox-checked">&#xE5CA;</i></span>
+              </span>
+            </div>
+            <div class="condition-label">
+              <label class="js-terms" for="conditions_to_approve[{$condition_name}]">
+                {$condition nofilter}
+              </label>
+            </div>
+          </li>
+        {/foreach}
+        {if !$can_buy}
+          <li id="li-conditions_to_approve[quallified]">
+            <div class="float-xs-left">
+              <span class="custom-checkbox">
+                <input  id    = "conditions_to_approve[quallified]"
+                        name  = "conditions_to_approve[quallified]"
+                        required
+                        type  = "checkbox"
+                        value = "1"
+                        class = "ps-shown-by-js"
+                >
+                <span><i class="material-icons checkbox-checked">&#xE5CA;</i></span>
+              </span>
+            </div>
+            <div class="condition-label">
+              <label class="js-terms" for="conditions_to_approve[quallified]">
+  {l s='I confirm that I am either an insured and qualified nail technician or one undergoing accredited training in artificial nail enhancements' d='Shop.Theme.Checkout'}
+              </label>
+            </div>
+          </li>
+        {/if}
+      </ul>
+    </form>
+  
+    {if !$can_buy}
+            <div class="condition-label" id="div-conditions_to_approve[quallified]">
+              <label class="">
+  {l s='Please [1]upload your certificate[/1].' 
+            sprintf=[
+              '[1]' => '<a style="padding: .1rem .3rem;" class="btn-primary" href="" id="our_frm">',
+              '[/1]' => '</a>'
+            ]
+            d='Shop.Theme.Checkout'}
+              </label>
+              <label class="">
+  {l s='Gellifique LTD reserves the right to conduct random spot checks to validate accredited training/completed qualifications' d='Shop.Theme.Checkout'}
+              </label>
+            </div>  
+    {/if}
+
+  
+  {/if}
+
+  </div>
+
+
+  <div id="payment-confirmation" >
+    <div class="ps-shown-by-js">
+      <button type="submit" {if !$selected_payment_option}disabled{/if} class="btn btn-primary center-block {if !$selected_payment_option}disabled{/if}" id="btn-payment-submit">
+        {l s='Order with an obligation to pay' d='Shop.Theme.Checkout'}
+      </button>
+      {if $show_final_summary}
+        <article class="alert alert-danger mt-2 js-alert-payment-conditions" role="alert" data-alert="danger">
+          {l
+            s='Please make sure you\'ve chosen a [1]payment method[/1] and accepted the [2]terms and conditions[/2].'
+            sprintf=[
+              '[1]' => '<a href="#checkout-payment-step">',
+              '[/1]' => '</a>',
+              '[2]' => '<a href="#conditions-to-approve">',
+              '[/2]' => '</a>'
+            ]
+            d='Shop.Theme.Checkout'
+          }
+        </article>
+      {/if}
+    </div>
+    <div class="ps-hidden-by-js">
+      {if $selected_payment_option and $all_conditions_approved}
+        <label for="pay-with-{$selected_payment_option}">{l s='Order with an obligation to pay' d='Shop.Theme.Checkout'}</label>
+      {/if}
+    </div>
+  </div>
+    
+
+  <script>
+  document.getElementById('conditions_to_approve[terms-and-conditions]').checked = false;
+  
+  var our_frm = "http://app.gellifique.co.uk/prestashop/upload-cert/" + prestashop.customer.email;  
+  if (document.getElementById('our_frm')) document.getElementById('our_frm').href=our_frm
+
+  //console.log(prestashop.cart)
+
+  var can_buy = 1;
+  for (i=0;i<prestashop.cart.products.length;++i) {
+    f = prestashop.cart.products[i].embedded_attributes.features;
+    //console.log(f);    
+    for (j=0;j<f.length;++j) {
+      if (f[j]['id_feature']=='15' && f[j]['id_feature_value']=='4822') {
+        can_buy = 0;
+      }
+    }
+  }
+  if (can_buy) {
+    if (document.getElementById('conditions_to_approve[quallified]')) 
+      document.getElementById('conditions_to_approve[quallified]').checked = true;
+    if (document.getElementById('div-conditions_to_approve[quallified]')) 
+      document.getElementById('div-conditions_to_approve[quallified]').style.display = 'none';
+    if (document.getElementById('li-conditions_to_approve[quallified]')) 
+      document.getElementById('li-conditions_to_approve[quallified]').style.display = 'none';
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('payment-options-conditions').style.display = 'block';
+  });
+
+
+  </script>
+
+  {hook h='displayPaymentByBinaries'}
+
+  <div class="modal fade" id="modal">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <button type="button" class="close" data-dismiss="modal" aria-label="{l s='Close' d='Shop.Theme.Global'}">
+          <span aria-hidden="true">&times;</span>
+        </button>
+        <div class="js-modal-content"></div>
+      </div>
+    </div>
+  </div>
+{/block}
